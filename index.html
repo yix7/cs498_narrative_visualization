@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Covid-19 Daily New Cases Trend In the U.S.</title>
+    <!-- Load d3.js -->
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <style>
+
+        #line_tooltip {
+            position: absolute;
+            width: 155px;
+            height: auto;
+            padding: 10px;
+            background-color: white;
+            -webkit-border-radius: 10px;
+            -moz-border-radius: 10px;
+            border-radius: 10px;
+            -webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+            -moz-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+            box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+            text-anchor: middle;
+        }
+
+        #line_tooltip.hidden {
+            display: none;
+        }
+
+        #line_tooltip p {
+            margin: 0;
+            font-family: sans-serif;
+            font-size: 16px;
+            line-height: 20px;
+            text-anchor: middle;
+        }
+
+        /*rect {*/
+        /*    opacity: 1;*/
+        /*}*/
+
+    </style>
+
+</head>
+<body onload="init()">
+
+<h1>Covid-19 Daily New Cases Trend In the U.S.</h1>
+<!-- Create a div where the graph will take place -->
+<!--<label for="mySlider">select month</label><br>-->
+<!--<input type="range" name="mySlider" id="myslider" min="1" max="5" step="1" value="1">-->
+<p>slide to view trend for each month</p>
+<div id="slider_chart"></div>
+<!--<div id="slider_annotation"></div>-->
+<div id="line_chart"></div>
+
+<h2>States With the Most Cases for Each Month</h2>
+<div id="bar_charts"></div>
+<!--<div id="april_bar"></div>-->
+<!--<div id="may_bar"></div>-->
+<!--<div id="june_bar"></div>-->
+<!--<div id="july_bar"></div>-->
+<!--<br>-->
+<!--<br>-->
+
+<!--<table id="monthly_summary"></table>-->
+<!--<div id="table"></div>-->
+
+<script>
+    d3.selectAll("h1").style("text-align", "center").style("font-family", "arial");
+    d3.selectAll("h2").style("text-align", "center").style("font-family", "arial");
+    d3.selectAll("p").style("text-align", "center").style("font-family", "arial").style("font-size", "18px");
+    d3.selectAll("div").style("text-align", "center");
+
+    const width_slider_svg = 1500
+    const height_slider_svg = 100
+    const width_line_svg = 1500
+    const height_line_svg = 500
+    const width_bar_svg = 375
+    const height_bar_svg = 275
+    // set the dimensions and margins of the graph
+    var margin = {top: 20, right: 30, bottom: 110, left: 80},
+        width_line_chart = width_line_svg - margin.left - margin.right,
+        height_line_chart = height_line_svg - margin.top - 60,
+        width_bar_chart = width_bar_svg - margin.left - margin.right,
+        height_bar_chart = height_bar_svg - margin.top - margin.bottom;
+
+
+    // append the svg object for line chart
+    var svg_line_chart = d3.select("#line_chart")
+        .append("svg")
+        .attr("width", width_line_svg)
+        .attr("height", height_line_svg)
+        .append("g")
+        .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+    // append the svg object for the bar chart
+    var svg_april_bar_chart = d3.select("#bar_charts")
+        .append("svg")
+        .attr("width", width_bar_svg)
+        .attr("height", height_bar_svg)
+        .append("g")
+        .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+    var svg_may_bar_chart = d3.select("#bar_charts")
+        .append("svg")
+        .attr("width", width_bar_svg)
+        .attr("height", height_bar_svg)
+        .append("g")
+        .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+    var svg_june_bar_chart = d3.select("#bar_charts")
+        .append("svg")
+        .attr("width", width_bar_svg)
+        .attr("height", height_bar_svg)
+        .append("g")
+        .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+    var svg_july_bar_chart = d3.select("#bar_charts")
+        .append("svg")
+        .attr("width", width_bar_svg)
+        .attr("height", height_bar_svg)
+        .append("g")
+        .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+
+    async function init() {
+
+        // plot the daily new cases chart
+        const data_daily_new_cases = await d3.csv("daily_new_cases.csv");
+
+        function readTableDailyNewCases(d) {
+            var dataset = [];
+            for (var i = 0; i < d.length; i++) {
+                dataset.push({date: d3.timeParse("%m/%d/%Y")(d[i].date), daily_cases: parseInt(d[i].daily_cases)});
+            }
+            return dataset;
+        }
+
+        var d = readTableDailyNewCases(data_daily_new_cases);
+
+        // Read monthly summary data, for printing table
+        const data_monthly_summary = await d3.csv("monthly_summary.csv");
+        const monthly_columns = ["month", "daily_avg", "monthly_total"];
+
+        // When reading the csv, I must format variables:
+        function readTableMonthlySummary(d) {
+            var dataset = [];
+            for (var i = 0; i < d.length; i++) {
+                dataset.push({month : d[i].month, daily_avg: parseInt(d[i].daily_avg), monthly_total: parseInt(d[i].monthly_total)});
+            }
+            return dataset;
+        }
+
+        var d_monthly_summary = readTableMonthlySummary(data_monthly_summary);
+
+
+        var apr_data = d.slice(0, 31);
+        var may_data = d.slice(30, 62);
+        var june_data = d.slice(61, 92);
+        var july_data = d.slice(91, );
+        // console.log(d);
+
+        // draw tips box
+        var tips = d3.select("body")
+            .append("div")
+            .attr("id", "tips")
+            .style("left", "18%")
+            .style("top", "110px")
+            .text("Tips: Hover over line or bar for details.")
+            .style("position", "absolute")
+            .style("font-family", "arial")
+            .style("font-size", "20px")
+            .style("outline", "#000000")
+            .style("text-anchor", "center");
+
+
+        // console.log(data[1])
+        // Add X axis --> it is a date format
+        var x_line = d3.scaleTime()
+            .domain(d3.extent(d, function (d) {
+                return d.date;
+            }))
+            .range([0, width_line_chart]);
+        svg_line_chart.append("g")
+            .attr("transform", "translate(0," + height_line_chart + ")")
+            .call(d3.axisBottom(x_line));
+
+        // Add Y axis
+        var y_line = d3.scaleLinear()
+            .domain([0, d3.max(d, function (d) {
+                return d.daily_cases;
+            })])
+            .range([height_line_chart, 0]);
+        svg_line_chart.append("g")
+            .call(d3.axisLeft(y_line));
+
+        //add label
+        // Add label for x axis
+        svg_line_chart.append("g")
+            .attr("id", "x_label")
+            .attr("transform", "translate(" + (width_line_chart/2-20) + "," + (height_line_chart+50) + ")")
+            .append("text")
+            .style("text-anchor", "middle")
+            // .style("font-weight", "bold")
+            .attr("font-size", "20px")
+            .attr("fill", "black")
+            .text("Date")
+
+
+        // Add label for y axis
+        svg_line_chart.append("g")
+            .attr("id", "y_label")
+            .attr("transform", "translate(" + (0-margin.left) + "," + (height_line_chart/2) + ")")
+            .append("text")
+            .style("text-anchor", "middle")
+            .attr("transform", "rotate(90)")
+            // .style("font-weight", "bold")
+            .attr("font-size", "20px")
+            .attr("fill", "black")
+            .text("Daily New Cases")
+
+        // Add the line for april
+        var svg_line_april = svg_line_chart.append("path")
+            .datum(apr_data)
+            .attr("id", "apr_line")
+            .attr("fill", "none")
+            .attr("stroke", "steelblue")
+            .attr("stroke-width", 2.5)
+            // .on("mouseover", over)
+            .attr("d", d3.line()
+                    .x(function (d) {
+                        return x_line(d.date)
+                    })
+                    .y(function (d) {
+                        return y_line(d.daily_cases)
+                    })
+            )
+            .attr("opacity", 1);
+
+        // Add the line for may
+        var svg_line_may = svg_line_chart.append("path")
+            .datum(may_data)
+            .attr("id", "may_line")
+            .attr("fill", "none")
+            .attr("stroke", "steelblue")
+            .attr("stroke-width", 2.5)
+            .attr("d", d3.line()
+                .x(function (d) {
+                    return x_line(d.date)
+                })
+                .y(function (d) {
+                    return y_line(d.daily_cases)
+                })
+            )
+            .attr("opacity", 0);
+
+
+        // Add the line for june
+        var svg_line_june = svg_line_chart.append("path")
+            .datum(june_data)
+            .attr("id", "june_line")
+            .attr("fill", "none")
+            .attr("stroke", "steelblue")
+            .attr("stroke-width", 2.5)
+            .attr("d", d3.line()
+                .x(function (d) {
+                    return x_line(d.date)
+                })
+                .y(function (d) {
+                    return y_line(d.daily_cases)
+                })
+            )
+            .attr("opacity", 0);
+
+
+        // Add the line for july
+        var svg_line_july = svg_line_chart.append("path")
+            .datum(july_data)
+            .attr("id", "july_line")
+            .attr("fill", "none")
+            .attr("stroke", "steelblue")
+            .attr("stroke-width", 2.5)
+            .attr("d", d3.line()
+                .x(function (d) {
+                    return x_line(d.date)
+                })
+                .y(function (d) {
+                    return y_line(d.daily_cases)
+                })
+            )
+            .attr("opacity", 0);
+
+
+        // Add the vertical dashed line
+        const max_cases_count = d3.max(d, function (d) {
+            return d.daily_cases;
+        });
+
+        const line_may = [
+            {date: d3.timeParse("%m/%d/%Y")("05/01/2020"), daily_cases: 0},
+            {date: d3.timeParse("%m/%d/%Y")("05/01/2020"), daily_cases: max_cases_count}
+        ];
+        const line_june = [
+            {date: d3.timeParse("%m/%d/%Y")("06/01/2020"), daily_cases: 0},
+            {date: d3.timeParse("%m/%d/%Y")("06/01/2020"), daily_cases: max_cases_count}
+        ];
+        const line_july = [
+            {date: d3.timeParse("%m/%d/%Y")("07/01/2020"), daily_cases: 0},
+            {date: d3.timeParse("%m/%d/%Y")("07/01/2020"), daily_cases: max_cases_count}
+        ];
+
+        var separate_lines = [line_may, line_june, line_july];
+
+        for (let i = 0; i < separate_lines.length; i++) {
+            var vertical_line = svg_line_chart.append("path")
+                .datum(separate_lines[i])
+                .attr("id", "vertical_"+i)
+                .attr("fill", "none")
+                .attr("stroke", "rgba(200,0,0,0.5)")
+                .attr("stroke-width", 2.5)
+                .style("stroke-dasharray", ("4, 4"))
+                .attr("d", d3.line()
+                    .x(function (d) {
+                        return x_line(d.date)
+                    })
+                    .y(function (d) {
+                        return y_line(d.daily_cases)
+                    })
+                )
+            if (i !== 0) {
+                vertical_line.attr("opacity", "0");
+            }
+        }
+
+        // add annotation to the line chart
+
+        var annotations = {
+            "apr" : "In April 2020, most of the states implemented lock down, and Covid-19 daily new cases have plateaued out. New York was hit the hardest.",
+            "may" : "In May 2020, daily new cases continue to reduce. The situation is improving, and some states started to re-open.",
+            "june": "In June 2020, daily new cases count comes back up, with California, Texas and Florida having the most new cases",
+            "july": "In July 2020, the situation got worse, new cases count keeps going up in the 1st half, but showed signs of easing in the 2nd half."
+        };
+
+        var months = ["apr", "may", "june", "july"];
+
+        for (var i=0; i<months.length; i++) {
+
+            var annotation = svg_line_chart
+                .append("text")
+                .attr("id", months[i]+"_annotation")
+                .attr("x", width_line_chart/24+i*1.04*width_line_chart/4)
+                // .attr("y", height_line_chart/4)
+                .attr("text-anchor", "start")
+                .attr("font-family", "Times New Roman")
+                .attr("font-size", "15px")
+                // .attr("font-weight", "bold")
+                .attr("fill", "black")
+                .text(annotations[months[i]]);
+                // .call(wrap, 200)
+                // .attr("opacity", "1");
+                // .attr("y", height_line_chart/4);
+            if (i === 3) {
+                annotation.attr("y", height_line_chart/2);
+            } else {
+                annotation.attr("y", height_line_chart/4);
+            }
+            annotation.call(wrap, 200);
+            if (i === 0) {
+                annotation.attr("opacity", "1");
+            } else {
+                annotation.attr("opacity", "0");
+            }
+
+        }
+
+        function wrap(text, width) {
+            text.each(function () {
+                var text = d3.select(this),
+                    words = text.text().split(/\s+/).reverse(),
+                    word,
+                    line = [],
+                    lineNumber = 0,
+                    lineHeight = 1.3,
+                    x = text.attr("x"),
+                    y = text.attr("y"),
+                    dy = 0,
+                    tspan = text.text(null)
+                        .append("tspan")
+                        .attr("x", x)
+                        .attr("y", y)
+                        .attr("dy", dy + "em");
+                while (word = words.pop()) {
+                    line.push(word);
+                    tspan.text(line.join(" "));
+                    if (tspan.node().getComputedTextLength() > width) {
+                        line.pop();
+                        tspan.text(line.join(" "));
+                        line = [word];
+                        tspan = text.append("tspan")
+                            .attr("x", x)
+                            .attr("y", y)
+                            .attr("dy", ++lineNumber * lineHeight + dy + "em")
+                            .text(word);
+                    }
+                }
+            });
+        }
+
+        // draw pointer to the line chart
+
+        const radius = 4.5;
+        const circle_fill = "red"
+        const circle_op = "0.5"
+
+        var april_x1 = width_line_chart / 8;
+        var april_x2 = width_line_chart / 8;
+        var april_y1 = height_line_chart * 0.8 / 2;
+        var april_y2 = height_line_chart * 17 / 32;
+
+        var may_x1 = width_line_chart * 3 / 8;
+        var may_x2 = width_line_chart * 3 / 8;
+        var may_y1 = height_line_chart * 0.8 / 2;
+        var may_y2 = height_line_chart * 9.5 / 16;
+
+        var june_x1 = width_line_chart * 5 / 8;
+        var june_x2 = width_line_chart * 5 / 8;
+        var june_y1 = height_line_chart * 0.8 / 2;
+        var june_y2 = height_line_chart * 4.9 / 8;
+
+        var july_x1 = width_line_chart * 7 / 8 + 20;
+        var july_x2 = width_line_chart * 7 / 8 + 20;
+        var july_y1 = height_line_chart * 0.4 / 2;
+        var july_y2 = height_line_chart * 3.6 / 8;
+        
+        
+        svg_line_chart
+            .append("line")
+            .attr("id", "apr_pointer")
+            .attr("x1", april_x1)
+            .attr("y1", april_y1)
+            .attr("x2", april_x2)
+            .attr("y2", april_y2)
+            .style("stroke", "black")
+            .style("stroke-width", 1)
+            .attr("opacity", 1);
+
+        svg_line_chart
+            .append("line")
+            .attr("id", "may_pointer")
+            .attr("x1", may_x1)
+            .attr("y1", may_y1)
+            .attr("x2", may_x2)
+            .attr("y2", may_y2)
+            .style("stroke", "black")
+            .style("stroke-width", 1)
+            .attr("opacity", 0);
+
+        svg_line_chart
+            .append("line")
+            .attr("id", "june_pointer")
+            .attr("x1", june_x1)
+            .attr("y1", june_y1)
+            .attr("x2", june_x2)
+            .attr("y2", june_y2)
+            .style("stroke", "black")
+            .style("stroke-width", 1)
+            .attr("opacity", 0);
+
+        svg_line_chart
+            .append("line")
+            .attr("id", "july_pointer")
+            .attr("x1", july_x1)
+            .attr("y1", july_y1)
+            .attr("x2", july_x2)
+            .attr("y2", july_y2)
+            .style("stroke", "black")
+            .style("stroke-width", 1)
+            .attr("opacity", 0);
+
+
+        svg_line_chart
+            .append("circle")
+            .attr("id", "apr_circle")
+            .attr("cx", april_x2)
+            .attr("cy", april_y2 + radius / 2)
+            .attr("r", radius)
+            .attr("fill", circle_fill)
+            .attr("opacity", circle_op);
+
+        svg_line_chart
+            .append("circle")
+            .attr("id", "may_circle")
+            .attr("cx", may_x2)
+            .attr("cy", may_y2 + radius / 2)
+            .attr("r", radius)
+            .attr("fill", circle_fill)
+            .attr("opacity", 0);
+
+        svg_line_chart
+            .append("circle")
+            .attr("id", "june_circle")
+            .attr("cx", june_x2)
+            .attr("cy", june_y2 + radius / 2)
+            .attr("r", radius)
+            .attr("fill", circle_fill)
+            .attr("opacity", 0);
+
+        svg_line_chart
+            .append("circle")
+            .attr("id", "july_circle")
+            .attr("cx", july_x1)
+            .attr("cy", july_y1 - radius / 2)
+            .attr("r", radius)
+            .attr("fill", circle_fill)
+            .attr("opacity", 0);
+        
+        // add tooltip to the line chart
+        
+        // function over() {
+        //     this.attr("stroke", "rgba(220, 0, 0, 0.7)");
+        // }
+
+        var div = d3.select("body").append("div")
+            .attr("id", "line_tooltip")
+            .classed("hidden", true);
+
+        svg_line_april.on("mouseover", function () {
+            var coordinates= d3.mouse(this);
+            var x = coordinates[0];
+            var y = coordinates[1];
+        //     var xPos = parseFloat(d3.select(this).attr("x"));
+        //     var yPos = parseFloat(d3.select(this).attr("y"));
+
+                // .transition("setBarColor")
+                // .duration(250)
+            // svg_line_april.attr("stroke", "rgba(220, 0, 0, 0.7)").attr("fill", "none").attr('pointer-events', 'visibleStroke')
+            if (d3.select(this).attr("opacity") == "1") {
+                d3.select("#line_tooltip")
+                // .append("text")
+                // .attr("id", "apr_tooltip")
+                .style("left", x+margin.left+(window.innerWidth-width_line_svg)/2+"px")
+                .style("top", y+margin.top+180+"px")
+                // .attr("text-anchor", "middle")
+                // .attr("font-family", "sans-serif")
+                // .attr("font-size", "11px")
+                // .attr("font-weight", "bold")
+                // .attr("fill", "black")
+                .text("April Total Cases: " + parseInt(d_monthly_summary[0].monthly_total/1000) + "k");
+            // svg_april_bar_chart.selectAll("rect")
+            //     .data(d)
+            //     // .enter()
+            //     // .append("rect")
+            //     .append("title")
+            //     .text(function(d) {
+            //         return d.states;
+            //     })
+
+                d3.select("#line_tooltip").classed("hidden", false);
+                svg_line_april.transition("april_line_on").duration(350).attr("stroke", "rgba(220, 0, 0, 0.7)");
+            }
+
+        })
+            .on("mouseout", function (d) {
+                // d3.select(this)
+                //     .transition("restoreBarColor")
+                //     .duration(250)
+                //     .attr("fill",  "steelblue");
+                // d3
+                //     .select("#apr_tooltip")
+                //     // .transition()
+                //     // .duration()
+                //     .remove();
+                d3.select("#line_tooltip").classed("hidden", true);
+                svg_line_april.transition("april_line_off").duration(350).attr("stroke", "steelblue");
+            })
+
+        svg_line_may.on("mouseover", function () {
+            var coordinates= d3.mouse(this);
+            var x = coordinates[0];
+            var y = coordinates[1];
+            if (d3.select(this).attr("opacity") == "1") {
+            d3.select("#line_tooltip")
+                .style("left", x+margin.left+(window.innerWidth-width_line_svg)/2+"px")
+                .style("top", y+margin.top+180+"px")
+                .text("May Total Cases: " + parseInt(d_monthly_summary[1].monthly_total/1000) + "k");
+
+                d3.select("#line_tooltip").classed("hidden", false);
+                svg_line_may.transition("may_line_on").duration(350).attr("stroke", "rgba(220, 0, 0, 0.7)");
+            }
+
+        })
+            .on("mouseout", function (d) {
+                d3.select("#line_tooltip").classed("hidden", true);
+                svg_line_may.transition("may_line_off").duration(350).attr("stroke", "steelblue");
+            })
+
+        svg_line_june.on("mouseover", function () {
+            var coordinates= d3.mouse(this);
+            var x = coordinates[0];
+            var y = coordinates[1];
+            if (d3.select(this).attr("opacity") == "1") {
+            d3.select("#line_tooltip")
+                .style("left", x+margin.left+(window.innerWidth-width_line_svg)/2+"px")
+                .style("top", y+margin.top+180+"px")
+                .text("June Total Cases: " + parseInt(d_monthly_summary[2].monthly_total/1000) + "k");
+
+                d3.select("#line_tooltip").classed("hidden", false);
+                svg_line_june.transition("june_line_on").duration(350).attr("stroke", "rgba(220, 0, 0, 0.7)");
+            }
+
+        })
+            .on("mouseout", function (d) {
+                d3.select("#line_tooltip").classed("hidden", true);
+                svg_line_june.transition("june_line_off").duration(350).attr("stroke", "steelblue");
+            })
+
+        svg_line_july.on("mouseover", function () {
+            var coordinates= d3.mouse(this);
+            var x = coordinates[0];
+            var y = coordinates[1];
+            if (d3.select(this).attr("opacity") == "1") {
+            d3.select("#line_tooltip")
+                .style("left", x+margin.left+(window.innerWidth-width_line_svg)/2+"px")
+                .style("top", y+margin.top+180+"px")
+                .text("July Total Cases: " + parseInt(d_monthly_summary[3].monthly_total/1000) + "k");
+
+                d3.select("#line_tooltip").classed("hidden", false);
+                svg_line_july.transition("july_line_on").duration(350).attr("stroke", "rgba(220, 0, 0, 0.7)");
+            }
+
+        })
+            .on("mouseout", function (d) {
+                d3.select("#line_tooltip").classed("hidden", true);
+                svg_line_july.transition("july_line_off").duration(350).attr("stroke", "steelblue");
+            })
+        // Read monthly summary data, for printing table
+        // const data_monthly_summary = await d3.csv("monthly_summary.csv");
+        // const monthly_columns = ["month", "daily_avg", "monthly_total"];
+        //
+        // // When reading the csv, I must format variables:
+        // function readTableMonthlySummary(d) {
+        //     var dataset = [];
+        //     for (var i = 0; i < d.length; i++) {
+        //         dataset.push({month : d[i].month, daily_avg: parseInt(d[i].daily_avg), monthly_total: parseInt(d[i].monthly_total)});
+        //     }
+        //     return dataset;
+        // }
+        //
+        // var d_monthly_summary = readTableMonthlySummary(data_monthly_summary);
+        //
+        // // console.table(d_monthly_summary);
+        // var table = d3.select("table").attr("border", "1");
+        // var header = table.append("thead").append("tr");
+        // header
+        //     .selectAll("th")
+        //     .data(["month", "daily_avg", "monthly_total"])
+        //     .enter()
+        //     .append("th")
+        //     .text(function (d) {
+        //         return d;
+        //     });
+        //
+        // var tablebody = table.append("tbody");
+        // var rows = tablebody
+        //     .selectAll("tr")
+        //     .data(d_monthly_summary)
+        //     .enter()
+        //     .append("tr");
+        // // We built the rows using the nested array - now each row has its own array.
+        //
+        // var cells = rows.selectAll("td")
+        //     // each row has data associated; we get it and enter it for the cells.
+        //     .data(function(r) {
+        //         // console.log(d);
+        //         return monthly_columns.map(function (col) {
+        //             return {col : col, val : r[col]};
+        //         })
+        //
+        //     })
+        //     .enter()
+        //     .append("td")
+        //     .attr( "style", "font-family: 'Lato'" )
+        //     .attr("style", "padding: 2px;")
+        //     .text(function(d) {
+        //         return d.val;
+        //     });
+
+
+        //    ###############  read april top states data  #################
+        const april_cases = await d3.csv("april_top10.csv");
+
+        function readAprilCases(d) {
+            var dataset = [];
+            var states = []
+            for (var i = 0; i < d.length; i++) {
+                dataset.push({states: d[i].states, april_total: parseInt(d[i].april_total)});
+                states.push(d[i].states);
+            }
+            return [dataset, states];
+        }
+
+        var gv_temp_april = readAprilCases(april_cases);
+        var d_april = gv_temp_april[0];
+        var s_april = gv_temp_april[1];
+        // console.log(d_april);
+        // console.log(d_april.april_total);
+
+
+
+        var x_april = d3.scaleBand()
+            .domain(s_april)
+            .range([0, width_bar_chart])
+            .round(true)
+            .paddingInner(0.05);
+
+
+        svg_april_bar_chart.append("g")
+            .attr("transform", "translate(0, " + height_bar_chart + ")")
+            .call(d3.axisBottom(x_april))
+            .selectAll("text")
+            .attr("y",-5)
+            .attr("x", 10)
+            .attr("transform", "rotate(90)")
+            .style("text-anchor", "start");
+
+        svg_april_bar_chart.append("g")
+            .attr("id", "apr_x_label")
+            .attr("transform", "translate(" + (width_bar_chart/2) + "," + (height_bar_chart+margin.bottom-5) + ")")
+            .append("text")
+            .style("text-anchor", "middle")
+            // .style("font-weight", "bold")
+            .attr("font-size", "15px")
+            .attr("fill", "black")
+            .text("April 2020")
+
+        svg_april_bar_chart.append("g")
+            .attr("id", "apr_y_label")
+            .attr("transform", "translate(" + (0-margin.left + 10) + "," + (height_bar_chart/2) + ")")
+            .append("text")
+            .style("text-anchor", "middle")
+            // .style("font-weight", "bold")
+            .attr("font-size", "12px")
+            .attr("fill", "black")
+            .attr("transform", "rotate(90)")
+            .text("April New Cases")
+
+
+        var april_max = d3.max(d_april, function (d) {return d.april_total;})
+
+        var y_april = d3.scaleLinear()
+            .domain([0, april_max])
+            .range([height_bar_chart, 0]);
+
+
+        svg_april_bar_chart.append("g")
+            // .attr("transform", "translate(" + margin.left + ", 0)")
+            .call(d3.axisLeft(y_april));
+
+        svg_april_bar_chart.selectAll("rect").data(d_april).enter().append("rect").attr("x", function(d,i){return x_april(d.states);})
+            .attr("y", function(d) {return y_april(d.april_total);})
+            .attr("width", function(){return x_april.bandwidth();})
+            .attr("height", function (d) {return height_bar_chart - y_april(d.april_total)})
+            .attr("fill" , "steelblue")
+            .attr("opacity", "1");
+
+        svg_april_bar_chart.attr("opacity", 1);
+
+        // function(d) {return "rgb(0,0," + (255 - Math.round(d.april_total/april_max*255*0.8)) + ")";}
+        //setting up the mouseover event
+
+
+        svg_april_bar_chart.selectAll("rect").on("mouseover", function (d) {
+            var xPos = parseFloat(d3.select(this).attr("x")) + x_april.bandwidth()/2;
+            var yPos = parseFloat(d3.select(this).attr("y")) - 10;
+            // console.log(d3.select(this).attr("opacity"));
+            if (d3.select(this).attr("opacity") == 1) {
+                // console.log("aaaa");
+                d3.select(this)
+                    // .transition("setBarColor")
+                    // .duration(250)
+                    .attr("fill", "rgba(220, 0, 0, 0.7)")
+                svg_april_bar_chart.append("text")
+                    .attr("id", "tooltip")
+                    .attr("x", xPos)
+                    .attr("y", yPos)
+                    .attr("text-anchor", "middle")
+                    .attr("font-family", "sans-serif")
+                    .attr("font-size", "11px")
+                    .attr("font-weight", "bold")
+                    .attr("fill", "black")
+                    .text("New Cases: " + parseInt(d.april_total / 1000) + "k");
+            }
+            // svg_april_bar_chart.selectAll("rect")
+            //     .data(d)
+            //     // .enter()
+            //     // .append("rect")
+            //     .append("title")
+            //     .text(function(d) {
+            //         return d.states;
+            //     })
+
+
+        })
+            .on("mouseout", function (d) {
+                d3.select(this)
+                    .transition("restoreBarColor")
+                    .duration(250)
+                    .attr("fill",  "steelblue");
+                d3
+                    .selectAll("#tooltip")
+                    // .transition()
+                    // .duration()
+                    .remove();
+            })
+
+
+
+    //    ###############  read may top states data  #################
+        const may_cases = await d3.csv("may_top10.csv");
+
+        function readmayCases(d) {
+            var dataset = [];
+            var states = []
+            for (var i = 0; i < d.length; i++) {
+                dataset.push({states: d[i].states, may_total: parseInt(d[i].may_total)});
+                states.push(d[i].states);
+            }
+            return [dataset, states];
+        }
+
+        var gv_temp_may = readmayCases(may_cases);
+        var d_may = gv_temp_may[0];
+        var s_may = gv_temp_may[1];
+        console.log(d_may);
+        // console.log(d_may.may_total);
+
+
+
+        var x_may = d3.scaleBand()
+            .domain(s_may)
+            .range([0, width_bar_chart])
+            .round(true)
+            .paddingInner(0.05);
+
+
+        svg_may_bar_chart.append("g")
+            .attr("transform", "translate(0, " + height_bar_chart + ")")
+            .call(d3.axisBottom(x_may))
+            .selectAll("text")
+            .attr("y",-5)
+            .attr("x", 10)
+            .attr("transform", "rotate(90)")
+            .style("text-anchor", "start");
+
+
+        var may_max = d3.max(d_may, function (d) {return d.may_total;})
+
+        var y_may = d3.scaleLinear()
+            .domain([0, may_max])
+            .range([height_bar_chart, 0]);
+
+
+        svg_may_bar_chart.append("g")
+            // .attr("transform", "translate(" + margin.left + ", 0)")
+            .call(d3.axisLeft(y_may));
+
+        svg_may_bar_chart.selectAll("rect").data(d_may).enter().append("rect").attr("x", function(d,i){return x_may(d.states);})
+            .attr("y", function(d) {return y_may(d.may_total);})
+            .attr("width", function(){return x_may.bandwidth();})
+            .attr("height", function (d) {return height_bar_chart - y_may(d.may_total)})
+            .attr("fill" , "steelblue")
+            .attr("opacity", "1");
+
+        svg_may_bar_chart.append("g")
+            .attr("id", "may_x_label")
+            .attr("transform", "translate(" + (width_bar_chart/2) + "," + (height_bar_chart+margin.bottom-5) + ")")
+            .append("text")
+            .style("text-anchor", "middle")
+            // .style("font-weight", "bold")
+            .attr("font-size", "15px")
+            .attr("fill", "black")
+            .text("May 2020")
+
+        svg_may_bar_chart.append("g")
+            .attr("id", "may_y_label")
+            .attr("transform", "translate(" + (0-margin.left + 10) + "," + (height_bar_chart/2) + ")")
+            .append("text")
+            .style("text-anchor", "middle")
+            // .style("font-weight", "bold")
+            .attr("font-size", "12px")
+            .attr("fill", "black")
+            .attr("transform", "rotate(90)")
+            .text("May New Cases")
+
+        svg_may_bar_chart.attr("opacity", 0);
+        //setting up the mouseover event
+
+        svg_may_bar_chart.selectAll("rect").on("mouseover", function (d) {
+            var xPos = parseFloat(d3.select(this).attr("x")) + x_may.bandwidth()/2;
+            var yPos = parseFloat(d3.select(this).attr("y")) - 10;
+            if (d3.select(this).attr("opacity") == "1") {
+                d3.select(this)
+                    // .transition("setBarColor")
+                    // .duration(250)
+                    .attr("fill", "rgba(220, 0, 0, 0.7)")
+                svg_may_bar_chart.append("text")
+                    .attr("id", "tooltip")
+                    .attr("x", xPos)
+                    .attr("y", yPos)
+                    .attr("text-anchor", "middle")
+                    .attr("font-family", "sans-serif")
+                    .attr("font-size", "11px")
+                    .attr("font-weight", "bold")
+                    .attr("fill", "black")
+                    .text("New Cases: " + parseInt(d.may_total / 1000) + "k");
+            }
+        })
+            .on("mouseout", function (d) {
+                d3.select(this)
+                    .transition("restoreBarColor")
+                    .duration(250)
+                    .attr("fill",  "steelblue");
+                d3
+                    .selectAll("#tooltip")
+                    // .transition()
+                    // .duration()
+                    .remove();
+            })
+
+
+
+
+        //    ###############  read june top states data  #################
+        const june_cases = await d3.csv("june_top10.csv");
+
+        function readjuneCases(d) {
+            var dataset = [];
+            var states = []
+            for (var i = 0; i < d.length; i++) {
+                dataset.push({states: d[i].states, june_total: parseInt(d[i].june_total)});
+                states.push(d[i].states);
+            }
+            return [dataset, states];
+        }
+
+        var gv_temp_june = readjuneCases(june_cases);
+        var d_june = gv_temp_june[0];
+        var s_june = gv_temp_june[1];
+        console.log(d_june);
+        // console.log(d_june.june_total);
+
+
+
+        var x_june = d3.scaleBand()
+            .domain(s_june)
+            .range([0, width_bar_chart])
+            .round(true)
+            .paddingInner(0.05);
+
+
+        svg_june_bar_chart.append("g")
+            .attr("transform", "translate(0, " + height_bar_chart + ")")
+            .call(d3.axisBottom(x_june))
+            .selectAll("text")
+            .attr("y",-5)
+            .attr("x", 10)
+            .attr("transform", "rotate(90)")
+            .style("text-anchor", "start");
+
+
+        var june_max = d3.max(d_june, function (d) {return d.june_total;})
+
+        var y_june = d3.scaleLinear()
+            .domain([0, june_max])
+            .range([height_bar_chart, 0]);
+
+
+        svg_june_bar_chart.append("g")
+            // .attr("transform", "translate(" + margin.left + ", 0)")
+            .call(d3.axisLeft(y_june));
+
+        svg_june_bar_chart.selectAll("rect").data(d_june).enter().append("rect").attr("x", function(d,i){return x_june(d.states);})
+            .attr("y", function(d) {return y_june(d.june_total);})
+            .attr("width", function(){return x_june.bandwidth();})
+            .attr("height", function (d) {return height_bar_chart - y_june(d.june_total)})
+            .attr("fill" , "steelblue")
+            .attr("opacity", "1");
+
+
+        svg_june_bar_chart.append("g")
+            .attr("id", "june_x_label")
+            .attr("transform", "translate(" + (width_bar_chart/2) + "," + (height_bar_chart+margin.bottom-5) + ")")
+            .append("text")
+            .style("text-anchor", "middle")
+            // .style("font-weight", "bold")
+            .attr("font-size", "15px")
+            .attr("fill", "black")
+            .text("June 2020")
+
+        svg_june_bar_chart.append("g")
+            .attr("id", "june_y_label")
+            .attr("transform", "translate(" + (0-margin.left + 10) + "," + (height_bar_chart/2) + ")")
+            .append("text")
+            .style("text-anchor", "middle")
+            // .style("font-weight", "bold")
+            .attr("font-size", "12px")
+            .attr("fill", "black")
+            .attr("transform", "rotate(90)")
+            .text("June New Cases")
+
+        //setting up the mouseover event
+        svg_june_bar_chart.attr("opacity", 0);
+
+        svg_june_bar_chart.selectAll("rect").on("mouseover", function (d) {
+            var xPos = parseFloat(d3.select(this).attr("x")) + x_june.bandwidth()/2;
+            var yPos = parseFloat(d3.select(this).attr("y")) - 10;
+            if (d3.select(this).attr("opacity") == "1") {
+                d3.select(this)
+                    // .transition("setBarColor")
+                    // .duration(250)
+                    .attr("fill", "rgba(220, 0, 0, 0.7)")
+                svg_june_bar_chart.append("text")
+                    .attr("id", "tooltip")
+                    .attr("x", xPos)
+                    .attr("y", yPos)
+                    .attr("text-anchor", "middle")
+                    .attr("font-family", "sans-serif")
+                    .attr("font-size", "11px")
+                    .attr("font-weight", "bold")
+                    .attr("fill", "black")
+                    .text("New Cases: " + parseInt(d.june_total / 1000) + "k");
+            }
+        })
+            .on("mouseout", function (d) {
+                d3.select(this)
+                    .transition("restoreBarColor")
+                    .duration(250)
+                    .attr("fill",  "steelblue");
+                d3
+                    .selectAll("#tooltip")
+                    // .transition()
+                    // .duration()
+                    .remove();
+            })
+
+
+
+        //    ###############  read july top states data  #################
+        const july_cases = await d3.csv("july_top10.csv");
+
+        function readjulyCases(d) {
+            var dataset = [];
+            var states = []
+            for (var i = 0; i < d.length; i++) {
+                dataset.push({states: d[i].states, july_total: parseInt(d[i].july_total)});
+                states.push(d[i].states);
+            }
+            return [dataset, states];
+        }
+
+        var gv_temp_july = readjulyCases(july_cases);
+        var d_july = gv_temp_july[0];
+        var s_july = gv_temp_july[1];
+        console.log(d_july);
+        // console.log(d_july.july_total);
+
+
+
+        var x_july = d3.scaleBand()
+            .domain(s_july)
+            .range([0, width_bar_chart])
+            .round(true)
+            .paddingInner(0.05);
+
+
+        svg_july_bar_chart.append("g")
+            .attr("transform", "translate(0, " + height_bar_chart + ")")
+            .call(d3.axisBottom(x_july))
+            .selectAll("text")
+            .attr("y",-5)
+            .attr("x", 10)
+            .attr("transform", "rotate(90)")
+            .style("text-anchor", "start");
+
+
+        var july_max = d3.max(d_july, function (d) {return d.july_total;})
+
+        var y_july = d3.scaleLinear()
+            .domain([0, july_max])
+            .range([height_bar_chart, 0]);
+            // .ticks(5);
+
+
+        svg_july_bar_chart.append("g")
+            // .attr("transform", "translate(" + margin.left + ", 0)")
+            .call(d3.axisLeft(y_july));
+
+
+        svg_july_bar_chart.selectAll("rect").data(d_july).enter().append("rect").attr("x", function(d,i){return x_july(d.states);})
+            .attr("y", function(d) {return y_july(d.july_total);})
+            .attr("width", function(){return x_july.bandwidth();})
+            .attr("height", function (d) {return height_bar_chart - y_july(d.july_total)})
+            .attr("fill" , "steelblue")
+            .attr("opacity", "1");
+
+
+        svg_july_bar_chart.append("g")
+            .attr("id", "july_x_label")
+            .attr("transform", "translate(" + (width_bar_chart/2) + "," + (height_bar_chart+margin.bottom-5) + ")")
+            .append("text")
+            .style("text-anchor", "middle")
+            // .style("font-weight", "bold")
+            .attr("font-size", "15px")
+            .attr("fill", "black")
+            .text("July 2020")
+
+        svg_july_bar_chart.append("g")
+            .attr("id", "july_y_label")
+            .attr("transform", "translate(" + (0-margin.left + 10) + "," + (height_bar_chart/2) + ")")
+            .append("text")
+            .style("text-anchor", "middle")
+            // .style("font-weight", "bold")
+            .attr("font-size", "12px")
+            .attr("fill", "black")
+            .attr("transform", "rotate(90)")
+            .text("July New Cases")
+
+
+
+
+        svg_july_bar_chart.attr("opacity", 0);
+
+        //setting up the mouseover event
+        svg_july_bar_chart.selectAll("rect").on("mouseover", function (d) {
+            var xPos = parseFloat(d3.select(this).attr("x")) + x_july.bandwidth()/2;
+            var yPos = parseFloat(d3.select(this).attr("y")) - 10;
+            if (d3.select(this).attr("opacity") == "1") {
+                d3.select(this)
+                    // .transition("setBarColor")
+                    // .duration(250)
+                    .attr("fill", "rgba(220, 0, 0, 0.7)")
+                svg_july_bar_chart.append("text")
+                    .attr("id", "tooltip")
+                    .attr("x", xPos)
+                    .attr("y", yPos)
+                    .attr("text-anchor", "middle")
+                    .attr("font-family", "sans-serif")
+                    .attr("font-size", "11px")
+                    .attr("font-weight", "bold")
+                    .attr("fill", "black")
+                    .text("New Cases: " + parseInt(d.july_total / 1000) + "k");
+            }
+
+        })            .on("mouseout", function (d) {
+            d3.select(this)
+                .transition("restoreBarColor")
+                .duration(250)
+                .attr("fill",  "steelblue");
+            d3
+                .selectAll("#tooltip")
+                // .transition()
+                // .duration()
+                .remove();
+        })
+
+        // create the slider
+        const partial_opacity = 0.38;
+        const transition_duration = 500;
+
+        
+        var slider = d3.select("#slider_chart")
+            .append("input")
+            .attr("type", "range")
+            .attr("min", "1")
+            .attr("max", "5")
+            .attr("step", "1")
+            .attr("value", "1")
+            .attr("id", "myslider")
+            .on("change", function(d) {
+                // console.log(this.value);
+                if (this.value === "1") {
+                    svg_line_chart.select("#apr_line").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#may_line").attr('opacity', 0);
+                    svg_line_chart.select("#june_line").attr('opacity', 0);
+                    svg_line_chart.select("#july_line").attr('opacity', 0);
+                    svg_line_chart.select("#apr_annotation").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#may_annotation").attr('opacity', 0);
+                    svg_line_chart.select("#june_annotation").attr('opacity', 0);
+                    svg_line_chart.select("#july_annotation").attr('opacity', 0);
+                    svg_line_chart.select("#apr_pointer").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#may_pointer").attr('opacity', 0);
+                    svg_line_chart.select("#june_pointer").attr('opacity', 0);
+                    svg_line_chart.select("#july_pointer").attr('opacity', 0);
+                    svg_line_chart.select("#apr_circle").transition().duration(transition_duration).attr('opacity', circle_op);
+                    svg_line_chart.select("#may_circle").attr('opacity', 0);
+                    svg_line_chart.select("#june_circle").attr('opacity', 0);
+                    svg_line_chart.select("#july_circle").attr('opacity', 0);
+                    svg_line_chart.select("#vertical_1").attr('opacity', 0)
+                    svg_line_chart.select("#vertical_2").attr('opacity', 0)
+                    svg_april_bar_chart.transition().duration(transition_duration).attr("opacity", 1);
+                    svg_may_bar_chart.attr("opacity", 0);
+                    svg_june_bar_chart.attr("opacity", 0);
+                    svg_july_bar_chart.attr("opacity", 0);
+                } else if (this.value === "2") {
+                    // console.log(this.value);
+                    svg_line_chart.select("#apr_line").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_line").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#june_line").attr('opacity', 0);
+                    svg_line_chart.select("#july_line").attr('opacity', 0);
+                    svg_line_chart.select("#apr_annotation").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_annotation").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#june_annotation").attr('opacity', 0);
+                    svg_line_chart.select("#july_annotation").attr('opacity', 0);
+                    svg_line_chart.select("#apr_pointer").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_pointer").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#june_pointer").attr('opacity', 0);
+                    svg_line_chart.select("#july_pointer").attr('opacity', 0);
+                    svg_line_chart.select("#apr_circle").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_circle").transition().duration(transition_duration).attr('opacity', circle_op);
+                    svg_line_chart.select("#june_circle").attr('opacity', 0);
+                    svg_line_chart.select("#july_circle").attr('opacity', 0);
+                    svg_line_chart.select("#vertical_1").transition().duration(transition_duration).attr('opacity', 1)
+                    svg_line_chart.select("#vertical_2").attr('opacity', 0)
+                    svg_april_bar_chart.attr("opacity", partial_opacity);
+                    svg_may_bar_chart.transition().duration(transition_duration).attr("opacity", 1);
+                    svg_june_bar_chart.attr("opacity", 0);
+                    svg_july_bar_chart.attr("opacity", 0);
+                } else if (this.value === "3") {
+                    svg_line_chart.select("#apr_line").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_line").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#june_line").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#july_line").attr('opacity', 0);
+                    svg_line_chart.select("#apr_annotation").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_annotation").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#june_annotation").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#july_annotation").attr('opacity', 0);
+                    svg_line_chart.select("#apr_pointer").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_pointer").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#june_pointer").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#july_pointer").attr('opacity', 0);
+                    svg_line_chart.select("#apr_circle").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_circle").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#june_circle").transition().duration(transition_duration).attr('opacity', circle_op);
+                    svg_line_chart.select("#july_circle").attr('opacity', 0);
+                    svg_line_chart.select("#vertical_1").transition().duration(transition_duration).attr('opacity', 1)
+                    svg_line_chart.select("#vertical_2").transition().duration(transition_duration).attr('opacity', 1)
+                    svg_april_bar_chart.attr("opacity", partial_opacity);
+                    svg_may_bar_chart.attr("opacity", partial_opacity);
+                    svg_june_bar_chart.transition().duration(transition_duration).attr("opacity", 1);
+                    svg_july_bar_chart.attr("opacity", 0);
+                } else if (this.value === "4") {
+                    svg_line_chart.select("#apr_line").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_line").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#june_line").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#july_line").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#apr_annotation").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_annotation").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#june_annotation").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#july_annotation").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#apr_pointer").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_pointer").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#june_pointer").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#july_pointer").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#apr_circle").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#may_circle").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#june_circle").attr('opacity', partial_opacity);
+                    svg_line_chart.select("#july_circle").transition().duration(transition_duration).attr('opacity', circle_op);
+                    svg_line_chart.select("#vertical_1").transition().duration(transition_duration).attr('opacity', 1)
+                    svg_line_chart.select("#vertical_2").transition().duration(transition_duration).attr('opacity', 1)
+                    svg_april_bar_chart.attr("opacity", partial_opacity);
+                    svg_may_bar_chart.attr("opacity", partial_opacity);
+                    svg_june_bar_chart.attr("opacity", partial_opacity);
+                    svg_july_bar_chart.transition().duration(transition_duration).attr("opacity", 1);
+                } else {
+                    svg_line_chart.select("#apr_line").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#may_line").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#june_line").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#july_line").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#apr_annotation").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#may_annotation").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#june_annotation").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#july_annotation").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#apr_pointer").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#may_pointer").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#june_pointer").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#july_pointer").transition().duration(transition_duration).attr('opacity', 1);
+                    svg_line_chart.select("#apr_circle").transition().duration(transition_duration).attr('opacity', circle_op);
+                    svg_line_chart.select("#may_circle").transition().duration(transition_duration).attr('opacity', circle_op);
+                    svg_line_chart.select("#june_circle").transition().duration(transition_duration).attr('opacity', circle_op);
+                    svg_line_chart.select("#july_circle").transition().duration(transition_duration).attr('opacity', circle_op);
+                    svg_line_chart.select("#vertical_1").transition().duration(transition_duration).attr('opacity', 1)
+                    svg_line_chart.select("#vertical_2").transition().duration(transition_duration).attr('opacity', 1)
+                    svg_april_bar_chart.transition().duration(transition_duration).attr("opacity", 1);
+                    svg_may_bar_chart.transition().duration(transition_duration).attr("opacity", 1);
+                    svg_june_bar_chart.transition().duration(transition_duration).attr("opacity", 1);
+                    svg_july_bar_chart.transition().duration(transition_duration).attr("opacity", 1);
+                }
+            });
+
+
+
+
+    }
+
+
+
+
+</script>
+</body>
+</html>
